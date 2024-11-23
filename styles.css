@@ -1,0 +1,176 @@
+body {
+  font-family: "Orbitron", Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+  background: linear-gradient(45deg, #e6e9f0, #9805db);
+  background-size: 400% 400%;
+  transition: background 0.5s ease;
+  touch-action: none;
+  position: relative; /* Add for z-index context */
+  z-index: 0; /* Establish stacking context */
+}
+
+.button-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  max-width: 600px;
+  position: relative; /* Add for z-index context */
+  z-index: 2000; /* Above the UFO */
+}
+
+.tone-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.3s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+.tone-button:active {
+  transform: scale(0.95);
+}
+
+.tone-button.active {
+  opacity: 0.6;
+}
+
+.control-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  position: relative; /* Add for z-index context */
+  z-index: 2000; /* Above the UFO */
+}
+
+#chord-button,
+#auto-sequence-button,
+.octave-button {
+  height: 60px;
+  border-radius: 30px;
+  border: none;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  color: white;
+  transition: background-color 0.3s, transform 0.1s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+#chord-button,
+#auto-sequence-button {
+  width: 200px;
+  background-color: #4caf50;
+}
+
+#chord-button:hover,
+#auto-sequence-button:hover {
+  background-color: #45a049;
+}
+
+#chord-button:active,
+#auto-sequence-button:active,
+.octave-button:active {
+  transform: scale(0.95);
+}
+
+.octave-button {
+  width: 60px;
+  background-color: #2196f3;
+}
+
+.octave-button:hover {
+  background-color: #1e88e5;
+}
+
+#auto-sequence-button {
+  margin-top: 10px;
+}
+
+#auto-sequence-button.active {
+  background-color: #ff4500;
+}
+
+.speed-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+  position: relative; /* Add for z-index context */
+  z-index: 2000; /* Above the UFO */
+}
+
+.speed-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  border: none;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  color: white;
+  background-color: #ff6b6b;
+  transition: background-color 0.3s, transform 0.1s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.speed-button:hover {
+  background-color: #ff5252;
+}
+
+.speed-button:active {
+  transform: translateY(-2px);
+}
+
+/* Status display styling */
+#status-display {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: monospace;
+  z-index: 3000; /* Above everything */
+  background: rgba(0, 0, 0, 0.5);
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (max-width: 600px) {
+  .speed-button {
+    width: 70px;
+    height: 70px;
+    font-size: 32px;
+  }
+}
