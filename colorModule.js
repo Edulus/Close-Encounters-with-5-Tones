@@ -106,4 +106,4 @@ function updateButtonColors(currentOctaveShift) {
   );
 }
 
-export { baseButtonColors, adjustColorForOctave, updateButtonColors };
+export { updateButtonColors };

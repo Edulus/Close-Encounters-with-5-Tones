@@ -1,86 +1,67 @@
-import { frequencies, playTone } from "./audioModule.js";
-import { ufoController } from "./ufoAnimation.js";
+import { getFrequencies, playTone } from "./audioModule.js";
 
 let isAutoSequenceActive = false;
-let autoSequenceTimeout;
+let autoSequenceTimeout = null;
 let currentIndex = 0;
 let sequenceSpeed = 800;
+let activeTone = null;
+let onCycleComplete = null;
+let onSpeedChange = null;
 
-function playAutoSequenceTone(
-  buttonColors,
-  changeBackgroundColor,
-  resetBackgroundColor
-) {
+function tick(buttonColors, changeBackgroundColor, resetBackgroundColor) {
   if (!isAutoSequenceActive) return;
 
+  const frequencies = getFrequencies();
   const tones = Object.keys(frequencies);
 
   if (currentIndex < tones.length) {
     const tone = tones[currentIndex];
     playTone(frequencies[tone], 0.7);
-    changeBackgroundColor(buttonColors[tone]);
+    changeBackgroundColor(buttonColors[tone], tone);
+    activeTone = tone;
     currentIndex++;
   } else {
-    resetBackgroundColor();
+    resetBackgroundColor(activeTone);
+    activeTone = null;
     currentIndex = 0;
-    ufoController.descend(sequenceSpeed);
+    onCycleComplete?.(sequenceSpeed);
   }
 
   autoSequenceTimeout = setTimeout(() => {
-    resetBackgroundColor();
-    playAutoSequenceTone(
-      buttonColors,
-      changeBackgroundColor,
-      resetBackgroundColor
-    );
+    resetBackgroundColor(activeTone);
+    activeTone = null;
+    tick(buttonColors, changeBackgroundColor, resetBackgroundColor);
   }, sequenceSpeed);
 }
 
-function startAutoSequence(
+export function toggleAutoSequence(
   buttonColors,
   changeBackgroundColor,
-  resetBackgroundColor
-) {
-  isAutoSequenceActive = true;
-  currentIndex = 0;
-  playAutoSequenceTone(
-    buttonColors,
-    changeBackgroundColor,
-    resetBackgroundColor
-  );
-}
-
-function stopAutoSequence(resetBackgroundColor) {
-  isAutoSequenceActive = false;
-  clearTimeout(autoSequenceTimeout);
-  resetBackgroundColor();
-  ufoController.zoomAway();
-}
-
-function toggleAutoSequence(
-  buttonColors,
-  changeBackgroundColor,
-  resetBackgroundColor
+  resetBackgroundColor,
+  callbacks = {}
 ) {
   if (isAutoSequenceActive) {
-    stopAutoSequence(resetBackgroundColor);
+    isAutoSequenceActive = false;
+    clearTimeout(autoSequenceTimeout);
+    resetBackgroundColor(activeTone);
+    activeTone = null;
+    callbacks.onStop?.();
   } else {
-    startAutoSequence(
-      buttonColors,
-      changeBackgroundColor,
-      resetBackgroundColor
-    );
+    onCycleComplete = callbacks.onCycleComplete ?? null;
+    onSpeedChange = callbacks.onSpeedChange ?? null;
+    isAutoSequenceActive = true;
+    currentIndex = 0;
+    activeTone = null;
+    tick(buttonColors, changeBackgroundColor, resetBackgroundColor);
   }
   return isAutoSequenceActive;
 }
 
-function setAutoSequenceSpeed(direction) {
+export function setAutoSequenceSpeed(direction) {
   if (direction === "slower") {
     sequenceSpeed = Math.min(sequenceSpeed * 1.2, 2000);
   } else if (direction === "faster") {
     sequenceSpeed = Math.max(sequenceSpeed / 1.2, 100);
   }
-  ufoController.setTransitionSpeed(sequenceSpeed);
+  onSpeedChange?.(sequenceSpeed);
 }
-
-export { toggleAutoSequence, setAutoSequenceSpeed };

@@ -1,4 +1,3 @@
-// unifiedUFOModule.js
 const BEAM_CONFIG = {
   dimensions: {
     top: { left: 35, right: 65 },
@@ -29,14 +28,13 @@ const BEAM_CONFIG = {
 
 const UFO_CONFIG = {
   zoom: {
-    duration: "0.5s",
+    durationMs: 500,
     finalScale: 0.1,
     finalRotation: 720,
     finalY: -1000,
   },
   teleport: {
-    duration: 3000,
-    endPosition: -275,
+    durationMs: 3000,
   },
   position: {
     initial: -450,
@@ -53,16 +51,38 @@ class UFOController {
   #beam = null;
   #beamGlow = null;
   #lights = null;
+  #body = null;
   #position = UFO_CONFIG.position.initial;
   #beamHeight = BEAM_CONFIG.dimensions.initialHeight;
-  #sequenceCount = 0;
   #currentEmojis = new Set();
   #beamIntersections = new Set();
-  #animationFrame = null;
-  #gradientTemplate = null;
+  #zoomTimeout = null;
+  #abductionCompleteTimeout = null;
+  #onAbductionComplete = null;
+  #gradientTemplate;
+  #beamTargets = [];
 
   constructor() {
     this.#gradientTemplate = this.#createBeamGradient();
+  }
+
+  setBeamTargets(targets) {
+    this.#beamTargets = targets;
+  }
+
+  setOnAbductionComplete(callback) {
+    this.#onAbductionComplete = callback;
+  }
+
+  #restoreTarget(key) {
+    const target = this.#beamTargets.find((t) => t.key === key);
+    if (target?.element) target.element.textContent = target.emoji;
+  }
+
+  restoreAllTargets() {
+    this.#beamTargets.forEach((t) => {
+      if (t.element) t.element.textContent = t.emoji;
+    });
   }
 
   #createBeamGradient() {
@@ -92,10 +112,8 @@ class UFOController {
   }
 
   #createBeamPath(height) {
-    const { top, bottom } = BEAM_CONFIG.dimensions;
-    const startHeight = BEAM_CONFIG.dimensions.startHeight;
-
-    return `M${top.left} ${startHeight} 
+    const { top, bottom, startHeight } = BEAM_CONFIG.dimensions;
+    return `M${top.left} ${startHeight}
             L${bottom.left} ${startHeight + height}
             L${bottom.right} ${startHeight + height}
             L${top.right} ${startHeight}`;
@@ -108,27 +126,20 @@ class UFOController {
       "http://www.w3.org/2000/svg",
       "svg"
     );
-    const viewBox = `${BEAM_CONFIG.dimensions.bottom.left} 0 
-                     ${
-                       BEAM_CONFIG.dimensions.bottom.right -
-                       BEAM_CONFIG.dimensions.bottom.left
-                     } 60`;
+    const viewBox = `${BEAM_CONFIG.dimensions.bottom.left} 0 ${
+      BEAM_CONFIG.dimensions.bottom.right - BEAM_CONFIG.dimensions.bottom.left
+    } 60`;
     this.#element.setAttribute("viewBox", viewBox);
 
+    const initialPath = this.#createBeamPath(BEAM_CONFIG.dimensions.initialHeight);
     this.#element.innerHTML = `
       <defs>${this.#gradientTemplate}</defs>
       <g class="beam-group">
-        <path class="beam-glow" d="${this.#createBeamPath(
-          BEAM_CONFIG.dimensions.initialHeight
-        )}" 
-              fill="url(#beamGlow)" style="opacity: 0;" />
-        <path class="beam" d="${this.#createBeamPath(
-          BEAM_CONFIG.dimensions.initialHeight
-        )}" 
-              fill="url(#beam)" style="opacity: 0;" />
+        <path class="beam-glow" d="${initialPath}" fill="url(#beamGlow)" style="opacity: 0;" />
+        <path class="beam" d="${initialPath}" fill="url(#beam)" style="opacity: 0;" />
       </g>
       <ellipse cx="50" cy="25" rx="15" ry="20" fill="#85A1C1" />
-      <ellipse cx="50" cy="35" rx="45" ry="12" fill="#5E81AC" />
+      <ellipse class="ufo-body" cx="50" cy="35" rx="45" ry="12" fill="#5E81AC" />
       <circle class="ufo-light" cx="30" cy="35" r="3" fill="#EBCB8B" />
       <circle class="ufo-light" cx="50" cy="35" r="3" fill="#EBCB8B" />
       <circle class="ufo-light" cx="70" cy="35" r="3" fill="#EBCB8B" />
@@ -146,6 +157,7 @@ class UFOController {
     this.#beam = this.#element.querySelector(".beam");
     this.#beamGlow = this.#element.querySelector(".beam-glow");
     this.#lights = this.#element.querySelectorAll(".ufo-light");
+    this.#body = this.#element.querySelector(".ufo-body");
   }
 
   #setupStyles() {
@@ -169,7 +181,14 @@ class UFOController {
       }
       .teleporting-emoji {
         position: fixed;
-        transition: all linear ${UFO_CONFIG.teleport.duration}ms;
+        transition: all linear ${UFO_CONFIG.teleport.durationMs}ms;
+      }
+      .teleporting-emoji.rescuable {
+        pointer-events: auto;
+        cursor: grab;
+      }
+      .teleporting-emoji.rescuing {
+        transition: all 0.5s ease-out !important;
       }
     `;
     document.head.appendChild(style);
@@ -199,53 +218,48 @@ class UFOController {
   }
 
   isPointInBeam(x, y) {
-    const beamTop = this.#position + BEAM_CONFIG.dimensions.startHeight;
-    const beamBottom = beamTop + this.#beamHeight;
-
-    if (y < beamTop || y > beamBottom) return false;
-
-    const progress = (y - beamTop) / this.#beamHeight;
-    const { top, bottom } = BEAM_CONFIG.dimensions;
-    const leftBound =
-      this.#element.offsetLeft + top.left + (bottom.left - top.left) * progress;
-    const rightBound =
-      this.#element.offsetLeft +
-      top.right +
-      (bottom.right - top.right) * progress;
-
-    return x >= leftBound && x <= rightBound;
+    if (!this.#beam) return false;
+    const bbox = this.#beam.getBoundingClientRect();
+    if (bbox.width === 0 || bbox.height === 0) return false;
+    return (
+      x >= bbox.left && x <= bbox.right && y >= bbox.top && y <= bbox.bottom
+    );
   }
 
   #checkBeamCollisions() {
-    const buttons = {
-      slower: document.getElementById("slower-button"),
-      faster: document.getElementById("faster-button"),
-    };
+    this.#beamTargets.forEach(({ element, emoji, key }) => {
+      if (!element || this.#beamIntersections.has(key)) return;
 
-    Object.entries(buttons).forEach(([type, button]) => {
-      if (!button || this.#beamIntersections.has(type)) return;
-
-      const rect = button.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
       if (this.isPointInBeam(centerX, centerY)) {
-        this.#beamIntersections.add(type);
-        this.#teleportEmoji(type === "slower" ? "🐢" : "🐰", centerX, centerY);
+        this.#beamIntersections.add(key);
+        element.textContent = "";
+        this.#teleportEmoji(emoji, centerX, centerY, key);
       }
     });
+
+    const allAbducted =
+      this.#beamTargets.length > 0 &&
+      this.#beamIntersections.size === this.#beamTargets.length;
+
+    if (allAbducted && this.#abductionCompleteTimeout === null) {
+      this.#abductionCompleteTimeout = setTimeout(() => {
+        this.#abductionCompleteTimeout = null;
+        this.#onAbductionComplete?.();
+      }, UFO_CONFIG.teleport.durationMs);
+    }
   }
 
   descend(speed) {
     if (!this.#element) this.initialize();
 
     if (this.#position < UFO_CONFIG.position.final) {
-      this.#sequenceCount++;
-      if (this.#sequenceCount % 1 === 0) {
-        this.#position += UFO_CONFIG.position.descentRate;
-        this.#element.style.transition = `top ${speed / 1000}s linear`;
-        this.#updatePosition();
-      }
+      this.#position += UFO_CONFIG.position.descentRate;
+      this.#element.style.transition = `top ${speed / 1000}s linear`;
+      this.#updatePosition();
     } else {
       this.#activateBeamAndLights();
     }
@@ -256,39 +270,34 @@ class UFOController {
     this.#beam.style.opacity = "1";
     this.#beamGlow.style.opacity = "0.8";
 
-    const screenHeight = window.innerHeight;
-    const saucerBottom = UFO_CONFIG.position.final + 180;
-    const maxBeamHeight =
-      screenHeight - saucerBottom - UFO_CONFIG.margin.bottom;
-
-    if (this.#beamHeight < maxBeamHeight) {
+    const bottomLimit = window.innerHeight - UFO_CONFIG.margin.bottom;
+    if (this.#beam.getBoundingClientRect().bottom < bottomLimit) {
       this.#beamHeight += BEAM_CONFIG.dimensions.extensionRate;
       this.#updateBeamPath();
-      this.#checkBeamCollisions();
     }
+    this.#checkBeamCollisions();
   }
 
-  #teleportEmoji(emoji, startX, startY) {
+  #teleportEmoji(emoji, startX, startY, key) {
     const emojiElement = document.createElement("div");
     emojiElement.textContent = emoji;
-    emojiElement.classList.add("teleporting-emoji");
+    emojiElement.classList.add("teleporting-emoji", "rescuable");
 
     Object.assign(emojiElement.style, {
       left: `${startX}px`,
       top: `${startY}px`,
       fontSize: "24px",
-      pointerEvents: "none",
       zIndex: "1001",
       opacity: "1",
     });
 
     document.body.appendChild(emojiElement);
     this.#currentEmojis.add(emojiElement);
+    emojiElement.offsetHeight;
 
-    emojiElement.offsetHeight; // Force reflow
-
-    const ufoX = window.innerWidth / 2;
-    const ufoY = this.#position + 35;
+    const ufoRect = this.#body.getBoundingClientRect();
+    const ufoX = ufoRect.left + ufoRect.width / 2;
+    const ufoY = ufoRect.top + ufoRect.height / 2;
 
     requestAnimationFrame(() => {
       emojiElement.style.transform = `translate(${ufoX - startX}px, ${
@@ -297,30 +306,58 @@ class UFOController {
       emojiElement.style.opacity = "0";
     });
 
+    const captureTimeout = setTimeout(() => {
+      emojiElement.remove();
+      this.#currentEmojis.delete(emojiElement);
+    }, UFO_CONFIG.teleport.durationMs);
+
+    emojiElement.addEventListener("click", () => {
+      clearTimeout(captureTimeout);
+      this.#rescueEmoji(emojiElement, key);
+    });
+  }
+
+  #rescueEmoji(emojiElement, key) {
+    this.#beamIntersections.delete(key);
+    this.#restoreTarget(key);
+    if (this.#abductionCompleteTimeout !== null) {
+      clearTimeout(this.#abductionCompleteTimeout);
+      this.#abductionCompleteTimeout = null;
+    }
+    emojiElement.classList.add("rescuing");
+    emojiElement.classList.remove("rescuable");
+    emojiElement.style.transform = "translate(0, 200px)";
+    emojiElement.style.opacity = "0";
     setTimeout(() => {
       emojiElement.remove();
       this.#currentEmojis.delete(emojiElement);
-    }, UFO_CONFIG.teleport.duration);
+    }, 500);
   }
 
   zoomAway() {
+    if (!this.#element) return;
+
     this.#beam.style.opacity = "0";
     this.#beamGlow.style.opacity = "0";
     this.#lights.forEach((light) => light.classList.remove("active"));
 
-    const { duration, finalScale, finalRotation, finalY } = UFO_CONFIG.zoom;
-    this.#element.style.transition = `top ${duration}, transform ${duration}`;
+    const { durationMs, finalScale, finalRotation, finalY } = UFO_CONFIG.zoom;
+    const durationSec = `${durationMs / 1000}s`;
+    this.#element.style.transition = `top ${durationSec}, transform ${durationSec}`;
     this.#element.style.transform = `translateX(-50%) scale(${finalScale}) rotate(${finalRotation}deg)`;
     this.#element.style.top = `${finalY}px`;
 
-    this.#animationFrame = requestAnimationFrame(() => {
-      setTimeout(() => this.reset(), parseFloat(duration) * 1000);
-    });
+    clearTimeout(this.#zoomTimeout);
+    this.#zoomTimeout = setTimeout(() => this.reset(), durationMs);
   }
 
   reset() {
+    clearTimeout(this.#abductionCompleteTimeout);
+    this.#abductionCompleteTimeout = null;
     this.#beamHeight = BEAM_CONFIG.dimensions.initialHeight;
     this.#updateBeamPath();
+    this.#beam.style.opacity = "0";
+    this.#beamGlow.style.opacity = "0";
     this.#currentEmojis.forEach((emoji) => emoji.remove());
     this.#currentEmojis.clear();
     this.#beamIntersections.clear();
@@ -329,7 +366,6 @@ class UFOController {
     this.#position = UFO_CONFIG.position.initial;
     this.#updatePosition();
     this.#element.style.transform = "translateX(-50%) scale(1) rotate(0deg)";
-    this.#sequenceCount = 0;
   }
 
   setTransitionSpeed(speed) {
@@ -339,17 +375,16 @@ class UFOController {
   }
 
   destroy() {
-    cancelAnimationFrame(this.#animationFrame);
+    clearTimeout(this.#zoomTimeout);
+    clearTimeout(this.#abductionCompleteTimeout);
     this.#currentEmojis.forEach((emoji) => emoji.remove());
+    this.#currentEmojis.clear();
     this.#element?.remove();
     this.#element = null;
     this.#beam = null;
     this.#beamGlow = null;
     this.#lights = null;
-  }
-
-  initializeTeleportation() {
-    // Required by interface, but implementation is handled in other methods
+    this.#body = null;
   }
 }
 

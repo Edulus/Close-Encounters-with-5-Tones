@@ -7,11 +7,8 @@ body {
   height: 100vh;
   margin: 0;
   background: linear-gradient(45deg, #e6e9f0, #9805db);
-  background-size: 400% 400%;
   transition: background 0.5s ease;
   touch-action: none;
-  position: relative; /* Add for z-index context */
-  z-index: 0; /* Establish stacking context */
 }
 
 .button-container {
@@ -21,8 +18,8 @@ body {
   gap: 20px;
   margin-bottom: 20px;
   max-width: 600px;
-  position: relative; /* Add for z-index context */
-  z-index: 2000; /* Above the UFO */
+  position: relative;
+  z-index: 2000;
 }
 
 .tone-button {
@@ -34,6 +31,7 @@ body {
   font-weight: bold;
   cursor: pointer;
   transition: transform 0.1s, opacity 0.3s;
+  -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
@@ -47,13 +45,21 @@ body {
   opacity: 0.6;
 }
 
+.tone-button.playing {
+  transform: scale(1.1);
+  box-shadow:
+    0 0 12px 4px rgba(255, 255, 255, 0.7),
+    0 0 24px 8px currentColor;
+  filter: brightness(1.25);
+}
+
 .control-buttons {
   display: flex;
   justify-content: center;
   gap: 10px;
   margin-bottom: 10px;
-  position: relative; /* Add for z-index context */
-  z-index: 2000; /* Above the UFO */
+  position: relative;
+  z-index: 2000;
 }
 
 #chord-button,
@@ -67,6 +73,7 @@ body {
   cursor: pointer;
   color: white;
   transition: background-color 0.3s, transform 0.1s;
+  -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
@@ -111,8 +118,8 @@ body {
   justify-content: center;
   gap: 10px;
   margin-top: 10px;
-  position: relative; /* Add for z-index context */
-  z-index: 2000; /* Above the UFO */
+  position: relative;
+  z-index: 2000;
 }
 
 .speed-button {
@@ -126,6 +133,7 @@ body {
   color: white;
   background-color: #ff6b6b;
   transition: background-color 0.3s, transform 0.1s;
+  -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
@@ -142,31 +150,6 @@ body {
   transform: translateY(-2px);
 }
 
-/* Status display styling */
-#status-display {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  color: white;
-  font-family: monospace;
-  z-index: 3000; /* Above everything */
-  background: rgba(0, 0, 0, 0.5);
-  padding: 5px 10px;
-  border-radius: 4px;
-}
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
 @media (max-width: 600px) {
   .speed-button {
     width: 70px;
@@ -174,3 +157,23 @@ body {
     font-size: 32px;
   }
 }
+
+.starfield {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #1b1140 0%, #07021a 70%, #000 100%);
+}
+
+.horizon {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+

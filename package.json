@@ -1,13 +1,11 @@
 {
-  "name": "html-css",
+  "name": "close-encounters-with-5-tones",
   "version": "1.0.0",
-  "description": "A template for HTML and CSS",
+  "description": "An interactive synthesizer inspired by Close Encounters of the Third Kind.",
   "main": "index.html",
   "scripts": {
     "start": "serve"
   },
-  "keywords": ["html", "css", "js"],
-  "author": "Ives van Hoorne",
   "license": "MIT",
   "devDependencies": {
     "serve": "11.2.0"
