@@ -8,17 +8,64 @@ let started = false;
 let comet = { active: false, respawnAt: 0 };
 
 function generateStars() {
+  const clusterCount = 2 + Math.floor(Math.random() * 2);
+  const clusters = Array.from({ length: clusterCount }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+  }));
+
   stars = Array.from({ length: STAR_COUNT }, () => {
-    const large = Math.random() < 0.1;
+    // Spectral color weights: 60% blue-white, 20% white, 12% yellow-white, 5% yellow, 3% orange-red
+    const roll = Math.random();
+    let r, g, b;
+    if (roll < 0.60) {
+      r = 200 + Math.floor(Math.random() * 21);
+      g = 220 + Math.floor(Math.random() * 21);
+      b = 255;
+    } else if (roll < 0.80) {
+      r = 255; g = 255; b = 255;
+    } else if (roll < 0.92) {
+      r = 255;
+      g = 240 + Math.floor(Math.random() * 11);
+      b = 200 + Math.floor(Math.random() * 21);
+    } else if (roll < 0.97) {
+      r = 255;
+      g = 220 + Math.floor(Math.random() * 11);
+      b = 150 + Math.floor(Math.random() * 21);
+    } else {
+      r = 255;
+      g = 180 + Math.floor(Math.random() * 21);
+      b = 100 + Math.floor(Math.random() * 31);
+    }
+
+    // Power-law magnitude: most stars faint, few bright
+    const radius = 0.2 + Math.pow(Math.random(), 3) * 2.3;
+    const normalizedRadius = (radius - 0.2) / 2.3;
+
+    const twinkleSpeed = 0.001 + (1 - normalizedRadius) * 0.004;
+    const twinkleAmplitude = radius > 1.5 ? 0.15 : 0.35;
+
+    // 20% of stars cluster near a random center
+    let x, y;
+    if (Math.random() < 0.20) {
+      const cluster = clusters[Math.floor(Math.random() * clusters.length)];
+      const spread = 200 + Math.random() * 100;
+      x = cluster.x + (Math.random() + Math.random() + Math.random() - 1.5) * spread;
+      y = cluster.y + (Math.random() + Math.random() + Math.random() - 1.5) * spread;
+      x = Math.max(0, Math.min(canvas.width, x));
+      y = Math.max(0, Math.min(canvas.height, y));
+    } else {
+      x = Math.random() * canvas.width;
+      y = Math.random() * canvas.height;
+    }
+
     return {
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      radius: large
-        ? Math.random() * 1.5 + 1.5
-        : Math.random() * 1.0 + 0.2,
+      x, y, radius,
       baseAlpha: Math.random() * 0.5 + 0.4,
-      twinkleSpeed: Math.random() * 0.003 + 0.0008,
+      twinkleSpeed,
+      twinkleAmplitude,
       phase: Math.random() * Math.PI * 2,
+      r, g, b,
     };
   });
 }
@@ -49,10 +96,24 @@ function frame(t) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (const s of stars) {
-    const alpha = s.baseAlpha + Math.sin(t * s.twinkleSpeed + s.phase) * 0.3;
+    const alpha = Math.max(0, Math.min(1,
+      s.baseAlpha + Math.sin(t * s.twinkleSpeed + s.phase) * s.twinkleAmplitude
+    ));
+
+    if (s.radius > 1.5) {
+      const glowR = s.radius * 4;
+      const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
+      grad.addColorStop(0, `rgba(${s.r}, ${s.g}, ${s.b}, 0.15)`);
+      grad.addColorStop(1, `rgba(${s.r}, ${s.g}, ${s.b}, 0)`);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, glowR, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
     ctx.beginPath();
     ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, Math.min(1, alpha))})`;
+    ctx.fillStyle = `rgba(${s.r}, ${s.g}, ${s.b}, ${alpha})`;
     ctx.fill();
   }
 

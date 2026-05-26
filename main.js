@@ -22,6 +22,9 @@ const activeOscillators = {};
 let chordOscillators = [];
 let isAutoSequenceActive = false;
 let abductionOccurred = false;
+let sequenceStartPending = false;
+let pendingTimeout = null;
+let hasRunSequenceBefore = false;
 
 const toneButtons = document.querySelectorAll(".tone-button");
 const chordButton = document.getElementById("chord-button");
@@ -44,6 +47,7 @@ ufoController.setBeamTargets([
 
 ufoController.setOnAbductionComplete(() => {
   abductionOccurred = true;
+  hasRunSequenceBefore = true;
   if (isAutoSequenceActive) toggleSequence();
 });
 
@@ -135,9 +139,8 @@ chordButton.addEventListener("touchend", (e) => {
 });
 chordButton.addEventListener("touchcancel", stopChordIfActive);
 
-function toggleSequence() {
-  const wasActive = isAutoSequenceActive;
-  isAutoSequenceActive = toggleAutoSequence(
+function doToggleAutoSequence() {
+  return toggleAutoSequence(
     buttonColors,
     (color, tone) => {
       changeBackgroundColor(color);
@@ -153,11 +156,21 @@ function toggleSequence() {
       onStop: () => ufoController.zoomAway(),
     }
   );
-  autoSequenceButton.textContent = isAutoSequenceActive
-    ? "Stop Auto Sequence"
-    : "Start Auto Sequence";
-  autoSequenceButton.classList.toggle("active", isAutoSequenceActive);
-  if (!wasActive && isAutoSequenceActive) {
+}
+
+function toggleSequence() {
+  // Cancel pending start if user clicks Stop during chord preview or pause
+  if (sequenceStartPending) {
+    clearTimeout(pendingTimeout);
+    sequenceStartPending = false;
+    stopChordIfActive();
+    autoSequenceButton.textContent = "Start Auto Sequence";
+    autoSequenceButton.classList.remove("active");
+    return;
+  }
+
+  if (!isAutoSequenceActive) {
+    // Restore abducted buttons immediately, before anything else
     if (abductionOccurred) {
       const shift = getOctaveShift();
       if (shift !== 0) {
@@ -171,6 +184,32 @@ function toggleSequence() {
     } else {
       ufoController.restoreAllTargets();
     }
+
+    if (hasRunSequenceBefore) {
+      // Play chord, then 1s pause, then start sequence
+      sequenceStartPending = true;
+      autoSequenceButton.textContent = "Stop Auto Sequence";
+      autoSequenceButton.classList.add("active");
+      startChord();
+
+      pendingTimeout = setTimeout(() => {
+        stopChordIfActive();
+        pendingTimeout = setTimeout(() => {
+          sequenceStartPending = false;
+          isAutoSequenceActive = doToggleAutoSequence();
+        }, 1000);
+      }, 1200);
+    } else {
+      // First run: start immediately, no chord preview
+      isAutoSequenceActive = doToggleAutoSequence();
+      autoSequenceButton.textContent = "Stop Auto Sequence";
+      autoSequenceButton.classList.add("active");
+    }
+  } else {
+    isAutoSequenceActive = doToggleAutoSequence();
+    autoSequenceButton.textContent = "Start Auto Sequence";
+    autoSequenceButton.classList.remove("active");
+    hasRunSequenceBefore = true;
   }
 }
 
