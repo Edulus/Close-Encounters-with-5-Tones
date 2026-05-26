@@ -65,7 +65,7 @@ export function mountHorizon() {
       </linearGradient>
     </defs>
 
-    <rect x="0" y="140" width="1600" height="260" fill="url(#horizonGlow)"/>
+    <rect x="0" y="0" width="1600" height="400" fill="url(#horizonGlow)"/>
     <rect x="350" y="60" width="900" height="320" fill="url(#towerHalo)"/>
 
     <path d="${TOWER_PATH}" fill="url(#towerFill)"/>

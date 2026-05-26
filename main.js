@@ -161,12 +161,14 @@ function toggleSequence() {
 autoSequenceButton.addEventListener("click", toggleSequence);
 
 decreaseOctaveButton.addEventListener("click", () => {
+  if (getOctaveShift() <= -4) return;
   shiftOctave(-1);
   buttonColors = updateButtonColors(getOctaveShift());
   updateToneButtons();
 });
 
 increaseOctaveButton.addEventListener("click", () => {
+  if (getOctaveShift() >= 4) return;
   shiftOctave(1);
   buttonColors = updateButtonColors(getOctaveShift());
   updateToneButtons();

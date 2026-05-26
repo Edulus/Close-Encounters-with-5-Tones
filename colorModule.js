@@ -91,8 +91,9 @@ function HSLToHex(h, s, l) {
 function adjustColorForOctave(baseColor, octaveShift) {
   let [h, s, l] = hexToHSL(baseColor);
 
-  s = Math.max(0, Math.min(100, s - octaveShift * 10));
-  l = Math.max(0, Math.min(100, l + octaveShift * 10));
+  const shift = (octaveShift - 4) * 6.25;
+  s = Math.max(0, Math.min(100, s - shift));
+  l = Math.max(0, Math.min(100, l + shift));
 
   return HSLToHex(h, s, l);
 }
