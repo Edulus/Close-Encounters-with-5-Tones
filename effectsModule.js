@@ -65,3 +65,7 @@ export function setAutoSequenceSpeed(direction) {
   }
   onSpeedChange?.(sequenceSpeed);
 }
+
+export function resetAutoSequenceSpeed() {
+  sequenceSpeed = 800;
+}

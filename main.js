@@ -8,7 +8,7 @@ import {
   playChord,
   stopChord,
 } from "./audioModule.js";
-import { toggleAutoSequence, setAutoSequenceSpeed } from "./effectsModule.js";
+import { toggleAutoSequence, setAutoSequenceSpeed, resetAutoSequenceSpeed } from "./effectsModule.js";
 import { updateButtonColors } from "./colorModule.js";
 import { ufoController } from "./ufoAnimation.js";
 import { startStarfield } from "./starfield.js";
@@ -21,6 +21,7 @@ let buttonColors = updateButtonColors(getOctaveShift());
 const activeOscillators = {};
 let chordOscillators = [];
 let isAutoSequenceActive = false;
+let abductionOccurred = false;
 
 const toneButtons = document.querySelectorAll(".tone-button");
 const chordButton = document.getElementById("chord-button");
@@ -42,6 +43,7 @@ ufoController.setBeamTargets([
 ]);
 
 ufoController.setOnAbductionComplete(() => {
+  abductionOccurred = true;
   if (isAutoSequenceActive) toggleSequence();
 });
 
@@ -155,7 +157,21 @@ function toggleSequence() {
     ? "Stop Auto Sequence"
     : "Start Auto Sequence";
   autoSequenceButton.classList.toggle("active", isAutoSequenceActive);
-  if (!wasActive && isAutoSequenceActive) ufoController.restoreAllTargets();
+  if (!wasActive && isAutoSequenceActive) {
+    if (abductionOccurred) {
+      const shift = getOctaveShift();
+      if (shift !== 0) {
+        shiftOctave(-shift);
+        buttonColors = updateButtonColors(getOctaveShift());
+        updateToneButtons();
+      }
+      resetAutoSequenceSpeed();
+      abductionOccurred = false;
+      ufoController.animatedRestoreAllTargets();
+    } else {
+      ufoController.restoreAllTargets();
+    }
+  }
 }
 
 autoSequenceButton.addEventListener("click", toggleSequence);

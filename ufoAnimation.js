@@ -85,6 +85,39 @@ class UFOController {
     });
   }
 
+  animatedRestoreAllTargets() {
+    this.#beamTargets.forEach((t, i) => {
+      if (!t.element) return;
+      const rect = t.element.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const targetY = rect.top + rect.height / 2;
+
+      const el = document.createElement("div");
+      el.textContent = t.emoji;
+      Object.assign(el.style, {
+        position: "fixed",
+        left: `${centerX}px`,
+        top: `${window.innerHeight + 40}px`,
+        fontSize: "24px",
+        zIndex: "1001",
+        transform: "translateX(-50%)",
+        transition: `top 1.2s ease-out ${i * 0.25}s`,
+        pointerEvents: "none",
+      });
+      document.body.appendChild(el);
+      el.offsetHeight;
+
+      requestAnimationFrame(() => {
+        el.style.top = `${targetY}px`;
+      });
+
+      el.addEventListener("transitionend", () => {
+        t.element.textContent = t.emoji;
+        el.remove();
+      }, { once: true });
+    });
+  }
+
   #createBeamGradient() {
     const stops = BEAM_CONFIG.gradient.stops
       .map(
